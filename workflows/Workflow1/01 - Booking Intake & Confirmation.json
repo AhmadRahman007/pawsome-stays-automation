@@ -1,0 +1,777 @@
+{
+  "name": "01 - Booking Intake & Confirmation.",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "booking-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        -368
+      ],
+      "id": "d81454d4-60d6-4870-9873-6219840b131a",
+      "name": "Webhook",
+      "webhookId": "5a629571-0295-4620-a9b4-033735ac7834"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqMCx6K7iQmgVTL",
+          "mode": "list",
+          "cachedResultName": "Pets",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tblqMCx6K7iQmgVTL"
+        },
+        "filterByFormula": "=={Pet Name} = \"{{ $json.body.petName }}\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        -368
+      ],
+      "id": "454e3549-69bc-4a5b-88f7-55920ddf8ebf",
+      "name": "Search records",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "88b03e1b-975f-4a54-8cfd-472e5cd6e6e4",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        80,
+        -368
+      ],
+      "id": "5f9ea5f6-244f-41ec-b0e5-67fbbb2ffb52",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ece57bc4-1f41-443e-8bec-ab7394cfcfe7",
+              "name": "error",
+              "value": "Pet Not Found",
+              "type": "string"
+            },
+            {
+              "id": "8554998b-ebd4-4547-bed4-de85ac369aa3",
+              "name": "originalRequest",
+              "value": "={{ $('Webhook').item.json.body }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        976,
+        -176
+      ],
+      "id": "31efd96b-c88b-406e-809b-3f3a8d298a40",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl4tP7EPBHdR7Tzo",
+          "mode": "list",
+          "cachedResultName": "Bookings",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tbl4tP7EPBHdR7Tzo"
+        },
+        "filterByFormula": "==AND(\n  {Status} = \"Confirmed\",\n  IS_BEFORE({Check-in Date}, \"{{ $('Webhook').item.json.body.checkOutDate }}\"),\n  IS_AFTER({Check-out Date}, \"{{ $('Webhook').item.json.body.checkInDate }}\")\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        -464
+      ],
+      "id": "7ef5aa4f-cfaf-4a54-89d3-4fc4a8f92f68",
+      "name": "Check Overlapping Bookings.",
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const overlapCount = $input.all().length;\nconst totalSlots = 25;\nconst hasCapacity = overlapCount < totalSlots;\n\nreturn [{\n  json: {\n    overlapCount,\n    totalSlots,\n    hasCapacity\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -464
+      ],
+      "id": "c01c58f1-0f55-47ce-a06f-dd6296aa2dd0",
+      "name": "Count Overlaps"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "eb48c6c4-7708-4393-b5c1-c72aebe86dd0",
+              "leftValue": "={{ $json.hasCapacity }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        -464
+      ],
+      "id": "975df802-dace-440a-8a51-bb8653e9e3e6",
+      "name": "Has Capacity?"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl09tvUP3TeDMs6D",
+          "mode": "list",
+          "cachedResultName": "Waitlist",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tbl09tvUP3TeDMs6D"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Pet": "={{ [$('If').item.json.id] }}",
+            "Requested Check-In": "={{ $('Webhook').item.json.body.checkInDate }}",
+            "Requested Check-Out": "={{ $('Webhook').item.json.body.checkOutDate }}",
+            "Position": 1,
+            "Status": "Waiting"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Position",
+              "displayName": "Position",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Pet",
+              "displayName": "Pet",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Requested Check-In",
+              "displayName": "Requested Check-In",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Requested Check-Out",
+              "displayName": "Requested Check-Out",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Waiting",
+                  "value": "Waiting"
+                },
+                {
+                  "name": "Offered",
+                  "value": "Offered"
+                },
+                {
+                  "name": "Expired",
+                  "value": "Expired"
+                },
+                {
+                  "name": "Converted",
+                  "value": "Converted"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -368
+      ],
+      "id": "93ed2f3a-3c7d-4c86-89e8-4ca2d3b80cf7",
+      "name": "Add to Waitlist",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl4tP7EPBHdR7Tzo",
+          "mode": "list",
+          "cachedResultName": "Bookings",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tbl4tP7EPBHdR7Tzo"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Pet": "={{ [$('If').item.json.id] }}",
+            "Check-in Date": "={{ $('Webhook').item.json.body.checkInDate }}",
+            "Check-Out Date": "={{ $('Webhook').item.json.body.checkOutDate }}",
+            "Service Type": "Boarding",
+            "Status": "Confirmed"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Booking ID",
+              "displayName": "Booking ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Pet",
+              "displayName": "Pet",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Check-in Date",
+              "displayName": "Check-in Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Check-Out Date",
+              "displayName": "Check-Out Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Service Type",
+              "displayName": "Service Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Daycare",
+                  "value": "Daycare"
+                },
+                {
+                  "name": "Boarding",
+                  "value": "Boarding"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Requested",
+                  "value": "Requested"
+                },
+                {
+                  "name": "Confirmed",
+                  "value": "Confirmed"
+                },
+                {
+                  "name": "Waitlisted",
+                  "value": "Waitlisted"
+                },
+                {
+                  "name": "Cancelled",
+                  "value": "Cancelled"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Created At",
+              "displayName": "Created At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -560
+      ],
+      "id": "5ea1bcd0-2af8-4174-af00-e1986d0d02fe",
+      "name": "createbooking",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "528f63a8-9cf2-481e-81ad-b7c7e24e56df",
+              "name": "emailSubject",
+              "value": "Your booking at Pawsome Stays is confirmed!",
+              "type": "string"
+            },
+            {
+              "id": "0f680f71-b611-4c0b-a42d-13ec34a7dfd9",
+              "name": "emailBody",
+              "value": "=Hi! Your booking for {{ $('Webhook').item.json.body.petName }} from {{ $('Webhook').item.json.body.checkInDate }} to {{ $('Webhook').item.json.body.checkOutDate }} is confirmed. See you soon!",
+              "type": "string"
+            },
+            {
+              "id": "ff519aa6-dca3-4855-b440-8c4308e9b7ec",
+              "name": "bookingStatus",
+              "value": "confirmed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -560
+      ],
+      "id": "d19e62f1-e2d1-49e2-9ec9-e101fa1799d6",
+      "name": "Create Confirmed Booking"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "528f63a8-9cf2-481e-81ad-b7c7e24e56df",
+              "name": "emailSubject",
+              "value": "You're on the waitlist at Pawsome Stays",
+              "type": "string"
+            },
+            {
+              "id": "0f680f71-b611-4c0b-a42d-13ec34a7dfd9",
+              "name": "emailBody",
+              "value": "=Hi! We're currently full for your requested dates, but {{ $('Webhook').item.json.body.petName }} has been added to our waitlist. We'll notify you if a spot opens up.",
+              "type": "string"
+            },
+            {
+              "id": "ff519aa6-dca3-4855-b440-8c4308e9b7ec",
+              "name": "bookingStatus",
+              "value": "waitlisted",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -368
+      ],
+      "id": "15917076-0d6a-4bbe-a042-7d4462739e9d",
+      "name": "Build Waitlist Message"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "528f63a8-9cf2-481e-81ad-b7c7e24e56df",
+              "name": "emailSubject",
+              "value": "We couldn't process your booking request",
+              "type": "string"
+            },
+            {
+              "id": "0f680f71-b611-4c0b-a42d-13ec34a7dfd9",
+              "name": "emailBody",
+              "value": "=Hi, we couldn't find a pet matching \"{{ $('Webhook').item.json.body.petName }}\" on file. Please contact us so we can help complete your pet's profile before booking.",
+              "type": "string"
+            },
+            {
+              "id": "ff519aa6-dca3-4855-b440-8c4308e9b7ec",
+              "name": "bookingStatus",
+              "value": "error",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -176
+      ],
+      "id": "278e6ce4-782f-4b6f-8b37-cf7944c95e9a",
+      "name": "Build Error Message"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": $json.bookingStatus, \"message\": $json.emailBody } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1424,
+        -368
+      ],
+      "id": "83b6b69c-c3ed-49d9-8d41-9aa46efbe4cd",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Check Overlapping Bookings.",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Overlapping Bookings.": {
+      "main": [
+        [
+          {
+            "node": "Count Overlaps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Overlaps": {
+      "main": [
+        [
+          {
+            "node": "Has Capacity?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Capacity?": {
+      "main": [
+        [
+          {
+            "node": "createbooking",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add to Waitlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "createbooking": {
+      "main": [
+        [
+          {
+            "node": "Create Confirmed Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Waitlist": {
+      "main": [
+        [
+          {
+            "node": "Build Waitlist Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Build Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Confirmed Booking": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Waitlist Message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "839a7fa2-b84d-40de-a574-0fc32998d399",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5ec0c86270d4d0b241382d849ef89e967234958e88dd76f609beace626df3d3"
+  },
+  "nodeGroups": [],
+  "id": "oimXlEvrlv9BFXHL",
+  "tags": []
+}
