@@ -1,0 +1,792 @@
+{
+  "name": "02 - AI Pet Health & Risk Screening",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "health-screening",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        -688
+      ],
+      "id": "4933e59b-53d7-42c7-9c21-a3e3f33d17cd",
+      "name": "Webhook",
+      "webhookId": "4f28daad-e922-4480-9c57-249de9466f5c"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1648,
+        -688
+      ],
+      "id": "ab713ab8-3426-44c5-b5fb-313a2f1a08f1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqMCx6K7iQmgVTL",
+          "mode": "list",
+          "cachedResultName": "Pets",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tblqMCx6K7iQmgVTL"
+        },
+        "filterByFormula": "=={Pet Name} = \"{{ $json.body.petName }}\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        -688
+      ],
+      "id": "6a18f740-b8db-434b-afa4-25b748b9fbd5",
+      "name": "Find Pet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "adade3f2-a55b-4095-9877-d586bd65c92a",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        80,
+        -688
+      ],
+      "id": "170075c3-e69a-4a5b-8920-8b4b54729201",
+      "name": "Pet Found?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a pet boarding safety screener. Read the health/behavior notes for a pet and classify the risk level for boarding staff. Respond ONLY with valid JSON in this exact format, no other text: {\\\"riskLevel\\\": \\\"Low\\\" or \\\"Medium\\\" or \\\"High\\\", \\\"reason\\\": \\\"a short one-sentence explanation\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $('Webhook').item.json.body.healthNotes }}\"\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        304,
+        -688
+      ],
+      "id": "a058e023-7c49-44ce-a312-480a193395c1",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IWQ3lgGaQrHp2JTO",
+          "name": "Groq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawContent = $input.first().json.choices[0].message.content;\n\nlet riskLevel = \"Pending Review\";\nlet reason = \"Could not parse AI response - flagged for manual review as a safety precaution.\";\nlet parseSucceeded = false;\n\ntry {\n  const parsed = JSON.parse(rawContent);\n  if (parsed.riskLevel && [\"Low\", \"Medium\", \"High\"].includes(parsed.riskLevel)) {\n    riskLevel = parsed.riskLevel;\n    reason = parsed.reason || \"No reason provided.\";\n    parseSucceeded = true;\n  }\n} catch (error) {\n  // Parsing failed — riskLevel stays \"Pending Review\" (safe default)\n}\n\nreturn [{\n  json: {\n    riskLevel,\n    reason,\n    parseSucceeded\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -688
+      ],
+      "id": "f4f798e4-27ac-4727-b087-8f326ab31b7d",
+      "name": "Parse AI Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a71db309-3fa5-4c66-97cb-01a58c0a43b1",
+              "leftValue": "={{ $json.parseSucceeded }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        -688
+      ],
+      "id": "1703f6e6-4f46-45e7-b9d4-253f803885c7",
+      "name": "Parse Succeeded?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2868d457-807b-44cf-9c3a-cc5910d6e564",
+              "leftValue": "={{ $json.riskLevel }}",
+              "rightValue": "Low",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        -768
+      ],
+      "id": "0d64f956-c29e-4933-a66b-42d11d5732b7",
+      "name": "Is Low Risk?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqMCx6K7iQmgVTL",
+          "mode": "list",
+          "cachedResultName": "Pets",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tblqMCx6K7iQmgVTL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Find Pet').item.json.id }}",
+            "Risk Level": "Low"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Pet Name",
+              "displayName": "Pet Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Health Note",
+              "displayName": "Health Note",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Species",
+              "displayName": "Species",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Dogs",
+                  "value": "Dogs"
+                },
+                {
+                  "name": "Cats",
+                  "value": "Cats"
+                },
+                {
+                  "name": "Hamsters",
+                  "value": "Hamsters"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Breed",
+              "displayName": "Breed",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Risk Level",
+              "displayName": "Risk Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Low",
+                  "value": "Low"
+                },
+                {
+                  "name": "Medium",
+                  "value": "Medium"
+                },
+                {
+                  "name": "High",
+                  "value": "High"
+                },
+                {
+                  "name": "Pending Review",
+                  "value": "Pending Review"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bookings",
+              "displayName": "Bookings",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Waitlist",
+              "displayName": "Waitlist",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Activity Log",
+              "displayName": "Activity Log",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1424,
+        -816
+      ],
+      "id": "70279ab7-9420-4808-ae8c-3befc770fee5",
+      "name": "Auto-Approve Pet",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appR5cA6lwVbcGbH9",
+          "mode": "list",
+          "cachedResultName": "Pawsome Strays",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblqMCx6K7iQmgVTL",
+          "mode": "list",
+          "cachedResultName": "Pets",
+          "cachedResultUrl": "https://airtable.com/appR5cA6lwVbcGbH9/tblqMCx6K7iQmgVTL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Find Pet').item.json.id }}",
+            "Risk Level": "={{ $json.riskLevel }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Pet Name",
+              "displayName": "Pet Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Health Note",
+              "displayName": "Health Note",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Species",
+              "displayName": "Species",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Dogs",
+                  "value": "Dogs"
+                },
+                {
+                  "name": "Cats",
+                  "value": "Cats"
+                },
+                {
+                  "name": "Hamsters",
+                  "value": "Hamsters"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Breed",
+              "displayName": "Breed",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Risk Level",
+              "displayName": "Risk Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Low",
+                  "value": "Low"
+                },
+                {
+                  "name": "Medium",
+                  "value": "Medium"
+                },
+                {
+                  "name": "High",
+                  "value": "High"
+                },
+                {
+                  "name": "Pending Review",
+                  "value": "Pending Review"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bookings",
+              "displayName": "Bookings",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Waitlist",
+              "displayName": "Waitlist",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Activity Log",
+              "displayName": "Activity Log",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        -592
+      ],
+      "id": "16e822b2-050a-4eb9-a597-219461722f0b",
+      "name": "Flag for Manual Review",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "63JCzS9IGLOETOAm",
+          "name": "Pawsome Strays Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "ahmedrehman47555@gmail.com",
+        "subject": "=Pet Health Review Needed: {{ $('Webhook').item.json.body.petName }}",
+        "message": "=A pet requires manual health/risk review before their stay can be approved.       Pet: {{ $('Webhook').item.json.body.petName }}      Risk Level: {{ $json.riskLevel }}      Reason: {{ $json.reason }}       Original health notes submitted:      {{ $('Webhook').item.json.body.healthNotes }}       Please review this pet's profile in Airtable and confirm whether the stay should proceed.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1424,
+        -592
+      ],
+      "id": "f262cef5-7d63-481d-999c-1b1070fc2d85",
+      "name": "Notify Manager",
+      "webhookId": "ae9754c7-84a2-437a-be1d-869d17b57a48",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "UfWdp9QNybfAtWdN",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Find Pet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Pet": {
+      "main": [
+        [
+          {
+            "node": "Pet Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pet Found?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Parse Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Is Low Risk?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Low Risk?": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve Pet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approve Pet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Manager": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1ddc4998-8801-418f-9794-34afdd0913cd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5ec0c86270d4d0b241382d849ef89e967234958e88dd76f609beace626df3d3"
+  },
+  "nodeGroups": [],
+  "id": "HD7mcosWJQNe9WQ7",
+  "tags": []
+}
